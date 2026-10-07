@@ -50,7 +50,7 @@ PROBES = {
 }
 # Échéances : toutes les 3 h jusqu'à +120 h.
 LEADS = list(range(0, 121, 3))
-MISSING = 1e10
+MISSING = 9990.0  # terre : 9999 dans les fichiers NCEP (et 9,999e20 pour certains champs)
 
 
 def iso(value: datetime) -> str:
@@ -127,7 +127,7 @@ def read_field(data: bytes) -> tuple[np.ndarray, RegularGrid]:
         values = codes_get_double_array(gid, "values").reshape(nj, ni).astype(np.float64)
     finally:
         codes_release(gid)
-    values[values >= MISSING] = np.nan
+    values[(values >= MISSING) | (values < -9990.0)] = np.nan
     grid = RegularGrid(lat_first=lat_first, lon_first=lon_first, lat_step=-dj if lat_first > lat_last else dj, lon_step=di, nj=nj, ni=ni)
     return values, grid
 
