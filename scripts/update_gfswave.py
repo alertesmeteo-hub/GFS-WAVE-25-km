@@ -61,8 +61,27 @@ def file_url(run: datetime, lead: int) -> str:
     return f"{BUCKET}gfs.{run:%Y%m%d}/{run:%H}/wave/gridded/gfswave.t{run:%H}z.global.0p25.f{lead:03d}.grib2"
 
 
+def run_is_complete(session: requests.Session, run: datetime) -> bool:
+    """Vérifie que chaque échéance attendue est disponible dans le bucket NOAA."""
+    for lead in LEADS:
+        try:
+            response = session.head(file_url(run, lead) + ".idx", timeout=30)
+        except requests.RequestException as exc:
+            LOGGER.info("Run GFS-Wave %s indisponible à +%03d h : %s", iso(run), lead, exc)
+            return False
+        if response.status_code != 200:
+            LOGGER.info(
+                "Run GFS-Wave %s incomplet à +%03d h (HTTP %s)",
+                iso(run),
+                lead,
+                response.status_code,
+            )
+            return False
+    return True
+
+
 def latest_complete_run(session: requests.Session) -> datetime | None:
-    """Run le plus récent dont la dernière échéance publiée (+120 h) est disponible."""
+    """Run le plus récent dont toutes les échéances jusqu’à +120 h sont disponibles."""
     now = datetime.now(timezone.utc)
     candidates = []
     for days_back in (0, 1):
@@ -72,8 +91,7 @@ def latest_complete_run(session: requests.Session) -> datetime | None:
             if run <= now:
                 candidates.append(run)
     for run in sorted(candidates, reverse=True):
-        response = session.head(file_url(run, LEADS[-1]) + ".idx", timeout=30)
-        if response.status_code == 200:
+        if run_is_complete(session, run):
             return run
     return None
 
