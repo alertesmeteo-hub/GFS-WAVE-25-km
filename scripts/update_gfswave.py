@@ -63,7 +63,7 @@ def file_url(run: datetime, lead: int) -> str:
 
 def run_is_complete(session: requests.Session, run: datetime) -> bool:
     """Vérifie que chaque échéance attendue est disponible dans le bucket NOAA."""
-    for lead in LEADS:
+    for lead in reversed(LEADS):
         try:
             response = session.head(file_url(run, lead) + ".idx", timeout=30)
         except requests.RequestException as exc:
